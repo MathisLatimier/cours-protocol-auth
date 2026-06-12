@@ -8,7 +8,7 @@ app.use(express.json())
 app.use(express.static('public'))
 
 // Routes
-app.use(authRoutes)
+app.use('/auth', authRoutes)
 app.use(adminRoutes)
 
 // Lance le serveur en local, sur le port 3000
