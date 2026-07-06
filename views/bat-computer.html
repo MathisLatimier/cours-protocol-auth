@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BatCave - Bat-Computer</title>
+</head>
+<body>
+    <h1>Bienvenue sur le Bat-Computer, <span id="username"></span> !</h1>
+    <a href="/auth/logout">Se déconnecter</a>
+    <script>
+        fetch('/bat-computer/user')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('username').textContent = data.username
+            })
+    </script>
+</body>
+</html>
