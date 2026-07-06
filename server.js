@@ -24,7 +24,7 @@ app.use(session({
 
 // Routes
 app.use('/auth', authRoutes)
-app.use(adminRoutes)
+app.use('/', adminRoutes)
 
 // Lance le serveur en local
 const PORT = process.env.PORT || 3000
