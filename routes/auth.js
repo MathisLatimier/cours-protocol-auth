@@ -1,5 +1,7 @@
 const express = require('express')
 const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
 const path = require('path')
 const db = require('../config/db')
 
@@ -17,33 +19,51 @@ router.post('/login', async (req, res) => {
     return res.status(400).send('Veuillez remplir tous les champs.')
   }
 
-
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
 
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).send('Identifiants invalides.')
   }
 
+  // Génération de l'accessToken JWT (15 secondes pour les tests)
+  const accessToken = jwt.sign(
+    { id: user.id, username: user.username },
+    process.env.SESSION_SECRET,
+    { expiresIn: '15s' }
+  )
 
-  req.session.regenerate((err) => {
-    if (err) return res.status(500).send('Erreur serveur.')
+  // Génération du refreshToken opaque
+  const refreshToken = crypto.randomBytes(64).toString('hex')
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 jours
 
-    req.session.user = { id: user.id, username: user.username }
+  // Stockage du refreshToken en BDD
+  db.prepare('INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)').run(user.id, refreshToken, expiresAt)
 
-    req.session.save((err) => {
-      if (err) return res.status(500).send('Erreur serveur.')
-      res.redirect('/bat-computer')
-    })
+  // Envoi des deux tokens via cookies sécurisés
+  res.cookie('access_token', accessToken, {
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 15 * 1000 // 15 secondes
   })
+
+  res.cookie('refresh_token', refreshToken, {
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+  })
+
+  res.redirect('/bat-computer')
 })
 
 
 router.get('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) return res.status(500).send('Erreur serveur.')
-    res.clearCookie('bat_identity')
-    res.redirect('/auth/login')
-  })
+  const refreshToken = req.cookies.refresh_token
+  if (refreshToken) {
+    db.prepare('DELETE FROM refresh_tokens WHERE token = ?').run(refreshToken)
+  }
+  res.clearCookie('access_token')
+  res.clearCookie('refresh_token')
+  res.redirect('/auth/login')
 })
 
 router.post('/register', async (req, res) => {

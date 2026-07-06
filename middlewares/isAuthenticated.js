@@ -1,7 +1,17 @@
+const jwt = require('jsonwebtoken')
+
 const isAuthenticated = (req, res, next) => {
-  if (req.session.user) {
+  const token = req.cookies.access_token
+
+  if (!token) {
+    return res.status(401).redirect('/auth/login')
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.SESSION_SECRET)
+    req.user = decoded
     next()
-  } else {
+  } catch (err) {
     return res.status(401).redirect('/auth/login')
   }
 }

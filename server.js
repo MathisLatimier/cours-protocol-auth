@@ -1,6 +1,6 @@
 require('dotenv').config()
 const express = require('express')
-const session = require('express-session')
+const cookieParser = require('cookie-parser')
 const authRoutes = require('./routes/auth')
 const adminRoutes = require('./routes/admin')
 
@@ -8,19 +8,8 @@ const app = express()
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(cookieParser())
 app.use(express.static('public'))
-
-app.use(session({
-  name: 'bat_identity',
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: true,
-    maxAge: 1800000
-  }
-}))
 
 // Routes
 app.use('/auth', authRoutes)
