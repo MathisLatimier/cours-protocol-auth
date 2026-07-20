@@ -56,6 +56,41 @@ router.post('/login', async (req, res) => {
 })
 
 
+router.post('/refresh', (req, res) => {
+  const refreshToken = req.cookies.refresh_token
+
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Refresh token manquant.' })
+  }
+
+  const stored = db.prepare(`
+    SELECT rt.*, u.username
+    FROM refresh_tokens rt
+    JOIN users u ON u.id = rt.user_id
+    WHERE rt.token = ?
+  `).get(refreshToken)
+
+  if (!stored || stored.expires_at < Date.now()) {
+    res.clearCookie('access_token')
+    res.clearCookie('refresh_token')
+    return res.status(401).json({ error: 'Refresh token invalide ou expiré.' })
+  }
+
+  const accessToken = jwt.sign(
+    { id: stored.user_id, username: stored.username },
+    process.env.SESSION_SECRET,
+    { expiresIn: '15s' }
+  )
+
+  res.cookie('access_token', accessToken, {
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 15 * 1000
+  })
+
+  res.json({ message: 'Access token rafraîchi.' })
+})
+
 router.get('/logout', (req, res) => {
   const refreshToken = req.cookies.refresh_token
   if (refreshToken) {
