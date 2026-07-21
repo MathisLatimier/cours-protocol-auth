@@ -4,8 +4,12 @@ const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const path = require('path')
 const db = require('../config/db')
+const isAuthenticated = require('../middlewares/isAuthenticated')
 
 const router = express.Router()
+
+// ANSSI : ≥12 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial
+const ANSSI_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/
 
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
@@ -99,6 +103,31 @@ router.get('/logout', (req, res) => {
   res.clearCookie('access_token')
   res.clearCookie('refresh_token')
   res.redirect('/auth/login')
+})
+
+router.post('/change-password', isAuthenticated, async (req, res) => {
+  const { oldPassword, newPassword } = req.body
+
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Veuillez remplir tous les champs.' })
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
+
+  if (!user || !(await bcrypt.compare(oldPassword, user.password_hash))) {
+    return res.status(401).json({ error: 'Ancien mot de passe incorrect.' })
+  }
+
+  if (!ANSSI_PASSWORD_REGEX.test(newPassword)) {
+    return res.status(400).json({
+      error: 'Le nouveau mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.',
+    })
+  }
+
+  const hash = await bcrypt.hash(newPassword, 10)
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id)
+
+  res.json({ message: 'Mot de passe modifié avec succès.' })
 })
 
 router.post('/register', async (req, res) => {
