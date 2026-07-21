@@ -4,7 +4,7 @@ const isAuthenticated = require('../middlewares/isAuthenticated')
 
 const router = express.Router()
 
-router.get('/bat-computer', isAuthenticated, (req, res) => {
+router.get('/bat-computer', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'bat-computer.html'))
 })
 
