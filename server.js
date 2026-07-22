@@ -15,6 +15,7 @@ app.use(express.static('public'))
 
 // Routes
 app.use('/auth', authRoutes)
+app.use('/api', authRoutes)
 app.use('/', adminRoutes)
 
 // Lance le serveur en local

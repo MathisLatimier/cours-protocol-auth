@@ -13,6 +13,33 @@ const router = express.Router()
 // ANSSI : ≥12 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial
 const ANSSI_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/
 
+function issueAuthCookies(res, user) {
+  const accessToken = jwt.sign(
+    { id: user.id, username: user.username },
+    process.env.SESSION_SECRET,
+    { expiresIn: '15m' }
+  )
+
+  const refreshToken = crypto.randomBytes(64).toString('hex')
+  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+
+  db.prepare(
+    'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)'
+  ).run(user.id, refreshToken, expiresAt)
+
+  res.cookie('access_token', accessToken, {
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 15 * 60 * 1000,
+  })
+
+  res.cookie('refresh_token', refreshToken, {
+    httpOnly: true,
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  })
+}
+
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
 })
@@ -43,6 +70,32 @@ router.post('/login', async (req, res) => {
     message: 'Étape 1 validée. Veuillez fournir votre code TOTP.',
     username: user.username,
   })
+})
+
+// Second facteur : validation TOTP puis distribution des jetons
+router.post('/verify-2fa', (req, res) => {
+  const { username } = req.body
+  const code = req.body.code ?? req.body.codeTOTP ?? req.body.totp
+
+  if (!username || !code) {
+    return res.status(400).json({ error: 'Nom d\'utilisateur et code TOTP requis.' })
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+
+  if (!user || !user.two_factor_enabled || !user.two_factor_secret) {
+    return res.status(401).json({ error: 'Authentification 2FA impossible.' })
+  }
+
+  const isValid = authenticator.check(String(code), user.two_factor_secret)
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Code TOTP invalide ou expiré.' })
+  }
+
+  issueAuthCookies(res, user)
+
+  res.json({ message: 'Authentification réussie.' })
 })
 
 
