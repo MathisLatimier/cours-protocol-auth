@@ -158,6 +158,39 @@ router.post('/2fa/setup', isAuthenticated, async (req, res) => {
   res.json({ qrCode, secret })
 })
 
+// Confirmation 2FA : valide le premier code TOTP avant d'activer définitivement
+router.post('/2fa/confirm', isAuthenticated, (req, res) => {
+  const { username, code } = req.body
+
+  if (!username || !code) {
+    return res.status(400).json({ error: 'Nom d\'utilisateur et code à 6 chiffres requis.' })
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+
+  if (!user || !user.two_factor_secret) {
+    return res.status(400).json({ error: 'Aucune initialisation 2FA en attente pour cet utilisateur.' })
+  }
+
+  if (user.id !== req.user.id) {
+    return res.status(403).json({ error: 'Vous ne pouvez confirmer que votre propre 2FA.' })
+  }
+
+  if (user.two_factor_enabled) {
+    return res.status(400).json({ error: 'La 2FA est déjà activée sur ce compte.' })
+  }
+
+  const isValid = authenticator.check(String(code), user.two_factor_secret)
+
+  if (!isValid) {
+    return res.status(401).json({ error: 'Code 2FA invalide ou expiré.' })
+  }
+
+  db.prepare('UPDATE users SET two_factor_enabled = 1 WHERE id = ?').run(user.id)
+
+  res.json({ message: '2FA activée avec succès.' })
+})
+
 router.post('/register', async (req, res) => {
   let { username, password } = req.body
 
