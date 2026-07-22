@@ -19,6 +19,8 @@ async function fetchWithRetry(url, options = {}) {
     return response
   }
 
+  console.log('[auth] Access token expiré → rafraîchissement transparent…')
+
   // JWT expiré : pause la requête, tente un rafraîchissement
   const refreshResponse = await fetch('/auth/refresh', {
     method: 'POST',
@@ -26,10 +28,13 @@ async function fetchWithRetry(url, options = {}) {
   })
 
   if (!refreshResponse.ok) {
+    console.log('[auth] Refresh échoué → redirection login')
     // Refresh token expiré ou révoqué → retour au login
     window.location.href = '/auth/login'
     return
   }
+
+  console.log('[auth] Access token rafraîchi, rejeu de la requête')
 
   // Rafraîchissement OK → rejoue la requête initiale
   return fetch(url, {
