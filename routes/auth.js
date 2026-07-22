@@ -3,6 +3,8 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 const path = require('path')
+const QRCode = require('qrcode')
+const { authenticator } = require('@otplib/preset-v11')
 const db = require('../config/db')
 const isAuthenticated = require('../middlewares/isAuthenticated')
 
@@ -128,6 +130,32 @@ router.post('/change-password', isAuthenticated, async (req, res) => {
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id)
 
   res.json({ message: 'Mot de passe modifié avec succès.' })
+})
+
+// Initialisation 2FA : génère le secret + QR code, sans activer encore (two_factor_enabled = 0)
+router.post('/2fa/setup', isAuthenticated, async (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur introuvable.' })
+  }
+
+  if (user.two_factor_enabled) {
+    return res.status(400).json({ error: 'La 2FA est déjà activée sur ce compte.' })
+  }
+
+  const secret = authenticator.generateSecret()
+  const otpauthUrl = authenticator.keyuri(user.username, 'Batcave', secret)
+
+  db.prepare(`
+    UPDATE users
+    SET two_factor_secret = ?, two_factor_enabled = 0
+    WHERE id = ?
+  `).run(secret, user.id)
+
+  const qrCode = await QRCode.toDataURL(otpauthUrl)
+
+  res.json({ qrCode, secret })
 })
 
 router.post('/register', async (req, res) => {
