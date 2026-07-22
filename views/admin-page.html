@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Session Auth - 🔒 Administration</title>
+    <title>BatCave - 🔒 Administration</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -14,7 +14,7 @@
   <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <div class="container-fluid">
-        <a class="navbar-brand" href="#">Session Auth</a>
+        <a class="navbar-brand" href="/">BatCave</a>
         <button
           class="navbar-toggler"
           type="button"
@@ -29,28 +29,25 @@
         <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav">
             <li class="nav-item">
-              <a class="nav-link" href="index.html">Accueil</a>
+              <a class="nav-link" href="/">Accueil</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link active" aria-current="page" href="admin-page"
-                >🔒 Administration</a
-              >
+              <a class="nav-link" href="/bat-computer">🔒 Bat-Computer</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="register.html">S'inscrire</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" onclick="logout()">Se déconnecter</a>
+              <a class="nav-link" href="/auth/logout">Se déconnecter</a>
             </li>
           </ul>
         </div>
       </div>
     </nav>
-    <main class="container">
+    <main class="container mt-4">
       <h1>🔒 Administration</h1>
-      <p>🔓 Cette page n'est accessible qu'aux utilisateurs connectés !</p>
+      <p>
+        Page legacy — utilisez plutôt le
+        <a href="/bat-computer">Bat-Computer</a>.
+      </p>
     </main>
-    <script src="logout.js"></script>
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
       integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"

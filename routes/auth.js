@@ -115,7 +115,7 @@ router.post('/change-password', isAuthenticated, async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)
 
   if (!user || !(await bcrypt.compare(oldPassword, user.password_hash))) {
-    return res.status(401).json({ error: 'Ancien mot de passe incorrect.' })
+    return res.status(403).json({ error: 'Ancien mot de passe incorrect.' })
   }
 
   if (!ANSSI_PASSWORD_REGEX.test(newPassword)) {
