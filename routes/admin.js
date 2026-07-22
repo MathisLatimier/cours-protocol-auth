@@ -1,5 +1,6 @@
 const express = require('express')
 const path = require('path')
+const db = require('../config/db')
 const isAuthenticated = require('../middlewares/isAuthenticated')
 
 const router = express.Router()
@@ -9,7 +10,18 @@ router.get('/bat-computer', (req, res) => {
 })
 
 router.get('/bat-computer/user', isAuthenticated, (req, res) => {
-  res.json({ username: req.user.username })
+  const user = db
+    .prepare('SELECT username, two_factor_enabled FROM users WHERE id = ?')
+    .get(req.user.id)
+
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur introuvable.' })
+  }
+
+  res.json({
+    username: user.username,
+    two_factor_enabled: Boolean(user.two_factor_enabled),
+  })
 })
 
 module.exports = router

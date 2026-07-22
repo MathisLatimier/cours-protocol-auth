@@ -54,9 +54,54 @@
         n'est accessible qu'aux agents connectés.
       </p>
       <p class="text-muted small">
-        L'access token expire en 15&nbsp;s : les appels API utilisent un retry
+        L'access token expire en 15&nbsp;min : les appels API utilisent un retry
         automatique via <code>/auth/refresh</code>.
       </p>
+
+      <hr class="my-4" />
+
+      <section id="twofa-section">
+        <h2 class="h4">Authentification à deux facteurs (2FA)</h2>
+        <p id="twofa-status" class="text-muted">Chargement du statut 2FA…</p>
+
+        <div id="twofa-setup-block" class="d-none">
+          <button type="button" id="setup-2fa-btn" class="btn btn-outline-primary">
+            Générer mon QR Code 2FA
+          </button>
+
+          <div id="twofa-qr-block" class="mt-3 d-none" style="max-width: 420px">
+            <p>Scannez ce QR code avec Google Authenticator (ou équivalent) :</p>
+            <img id="twofa-qr" alt="QR Code 2FA" class="img-fluid border rounded p-2 bg-white" />
+            <p class="mt-2 small">
+              Secret de secours :
+              <code id="twofa-secret"></code>
+            </p>
+
+            <form id="confirm-2fa-form" class="mt-3">
+              <div class="mb-3">
+                <label for="confirm-2fa-code" class="form-label"
+                  >Code à 6 chiffres</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="confirm-2fa-code"
+                  inputmode="numeric"
+                  pattern="[0-9]{6}"
+                  maxlength="6"
+                  placeholder="000000"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn btn-primary">
+                Confirmer et activer la 2FA
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <p id="twofa-message" class="mt-3"></p>
+      </section>
 
       <hr class="my-4" />
 

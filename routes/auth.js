@@ -254,8 +254,16 @@ router.post('/register', async (req, res) => {
     const insert = db.prepare(
       'INSERT INTO users (username, password_hash) VALUES (?, ?)'
     )
-    insert.run(username, hash)
-    res.status(201).send('Utilisateur créé avec succès !')
+    const result = insert.run(username, hash)
+    const user = { id: Number(result.lastInsertRowid), username }
+
+    // Session temporaire post-inscription pour permettre l'enrôlement 2FA
+    issueAuthCookies(res, user)
+
+    res.status(201).json({
+      message: 'Utilisateur créé avec succès ! Activez la 2FA depuis le Bat-Computer.',
+      redirect: '/bat-computer',
+    })
   } catch (err) {
     res.status(400).send("Erreur : l'utilisateur n'a pas pu être créé.")
   }

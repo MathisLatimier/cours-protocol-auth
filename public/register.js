@@ -7,19 +7,28 @@ document.getElementById('register-form').onsubmit = async (e) => {
 
   const response = await fetch('/auth/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
     body: JSON.stringify({ username, password }),
   })
 
+  const contentType = response.headers.get('content-type') || ''
+  const data = contentType.includes('application/json')
+    ? await response.json()
+    : { error: await response.text() }
+
   if (response.ok) {
     messageElement.className = 'mt-3 text-success'
-    messageElement.textContent = 'Inscription réussie ! Redirection…'
+    messageElement.textContent =
+      data.message || 'Inscription réussie ! Redirection vers le Bat-Computer…'
     setTimeout(() => {
-      window.location.href = '/auth/login'
+      window.location.href = data.redirect || '/bat-computer'
     }, 1000)
     return
   }
 
   messageElement.className = 'mt-3 text-danger'
-  messageElement.textContent = await response.text()
+  messageElement.textContent = data.error || (typeof data === 'string' ? data : 'Erreur')
 }
