@@ -31,34 +31,18 @@ router.post('/login', async (req, res) => {
     return res.status(401).send('Identifiants invalides.')
   }
 
-  // Génération de l'accessToken JWT (15 secondes pour les tests)
-  const accessToken = jwt.sign(
-    { id: user.id, username: user.username },
-    process.env.SESSION_SECRET,
-    { expiresIn: '15s' }
-  )
+  // Zéro-confiance : aucun jeton tant que la 2FA n'est pas validée
+  if (!user.two_factor_enabled) {
+    return res.status(403).json({
+      error: 'L\'activation de la 2FA est obligatoire avant toute connexion.',
+    })
+  }
 
-  // Génération du refreshToken opaque
-  const refreshToken = crypto.randomBytes(64).toString('hex')
-  const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 jours
-
-  // Stockage du refreshToken en BDD
-  db.prepare('INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)').run(user.id, refreshToken, expiresAt)
-
-  // Envoi des deux tokens via cookies sécurisés
-  res.cookie('access_token', accessToken, {
-    httpOnly: true,
-    sameSite: 'strict',
-    maxAge: 15 * 1000 // 15 secondes
+  return res.json({
+    requires2FA: true,
+    message: 'Étape 1 validée. Veuillez fournir votre code TOTP.',
+    username: user.username,
   })
-
-  res.cookie('refresh_token', refreshToken, {
-    httpOnly: true,
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
-  })
-
-  res.redirect('/bat-computer')
 })
 
 
@@ -85,13 +69,13 @@ router.post('/refresh', (req, res) => {
   const accessToken = jwt.sign(
     { id: stored.user_id, username: stored.username },
     process.env.SESSION_SECRET,
-    { expiresIn: '15s' }
+    { expiresIn: '15m' }
   )
 
   res.cookie('access_token', accessToken, {
     httpOnly: true,
     sameSite: 'strict',
-    maxAge: 15 * 1000
+    maxAge: 15 * 60 * 1000 // 15 minutes
   })
 
   res.json({ message: 'Access token rafraîchi.' })
