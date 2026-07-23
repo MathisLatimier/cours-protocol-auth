@@ -11,7 +11,7 @@ router.get('/bat-computer', (req, res) => {
 
 router.get('/bat-computer/user', isAuthenticated, (req, res) => {
   const user = db
-    .prepare('SELECT username, two_factor_enabled FROM users WHERE id = ?')
+    .prepare('SELECT username, provider, two_factor_enabled FROM users WHERE id = ?')
     .get(req.user.id)
 
   if (!user) {
@@ -20,6 +20,7 @@ router.get('/bat-computer/user', isAuthenticated, (req, res) => {
 
   res.json({
     username: user.username,
+    provider: user.provider,
     two_factor_enabled: Boolean(user.two_factor_enabled),
   })
 })

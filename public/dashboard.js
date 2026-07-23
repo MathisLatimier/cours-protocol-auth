@@ -52,6 +52,14 @@ async function loadUser() {
   const data = await response.json()
   currentUsername = data.username
   document.getElementById('username').textContent = data.username
+
+  // Comptes OAuth : pas de 2FA ni de mot de passe local
+  if (data.provider && data.provider !== 'local') {
+    document.getElementById('twofa-section').classList.add('d-none')
+    document.getElementById('local-auth-sections').classList.add('d-none')
+    return
+  }
+
   updateTwoFactorUI(Boolean(data.two_factor_enabled))
 }
 

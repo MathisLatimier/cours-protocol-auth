@@ -7,8 +7,37 @@ const QRCode = require('qrcode')
 const { authenticator } = require('@otplib/preset-v11')
 const db = require('../config/db')
 const isAuthenticated = require('../middlewares/isAuthenticated')
+const {
+  getProvider,
+  generateCodeVerifier,
+  generateCodeChallenge,
+  generateState,
+  buildAuthorizationUrl,
+  exchangeCodeForToken,
+  fetchUserProfile,
+} = require('../config/oauth')
 
 const router = express.Router()
+
+const OAUTH_COOKIE = 'oauth_pkce'
+const OAUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  // Lax : nécessaire pour que le cookie survive à la redirection cross-site du callback
+  sameSite: 'lax',
+  maxAge: 10 * 60 * 1000,
+  path: '/',
+}
+
+function clearOAuthCookie(res) {
+  res.clearCookie(OAUTH_COOKIE, { path: '/' })
+}
+
+function redirectOAuthError(res, error, errorDescription) {
+  clearOAuthCookie(res)
+  const params = new URLSearchParams({ error })
+  if (errorDescription) params.set('error_description', errorDescription)
+  return res.redirect(`/auth/oauth-error?${params.toString()}`)
+}
 
 // ANSSI : ≥12 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial
 const ANSSI_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/
@@ -42,6 +71,10 @@ function issueAuthCookies(res, user) {
 
 router.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'views', 'login.html'))
+})
+
+router.get('/oauth-error', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'views', 'oauth-error.html'))
 })
 
 
@@ -276,5 +309,98 @@ router.post('/register', async (req, res) => {
     res.status(400).send("Erreur : l'utilisateur n'a pas pu être créé.")
   }
 })
+
+/**
+ * ÉTAPE 3 — Authorization Code + PKCE
+ * GET /auth/google|github|discord
+ * GET /auth/google|github|discord/callback
+ */
+function startOAuth(providerKey) {
+  return (req, res) => {
+    const provider = getProvider(providerKey)
+    if (!provider) {
+      return redirectOAuthError(res, 'config_error')
+    }
+
+    const state = generateState()
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = generateCodeChallenge(codeVerifier)
+
+    res.cookie(
+      OAUTH_COOKIE,
+      JSON.stringify({ state, codeVerifier, provider: providerKey }),
+      OAUTH_COOKIE_OPTIONS
+    )
+
+    return res.redirect(
+      buildAuthorizationUrl(providerKey, { state, codeChallenge })
+    )
+  }
+}
+
+async function handleOAuthCallback(providerKey, req, res) {
+  // Annulation / refus sur la page de consentement (ex. ?error=access_denied)
+  if (req.query.error) {
+    return redirectOAuthError(
+      res,
+      req.query.error,
+      req.query.error_description
+    )
+  }
+
+  const { code, state } = req.query
+  if (!code) {
+    return redirectOAuthError(res, 'missing_code')
+  }
+
+  let pkce
+  try {
+    pkce = JSON.parse(req.cookies[OAUTH_COOKIE] || '')
+  } catch {
+    return redirectOAuthError(res, 'invalid_state')
+  }
+
+  if (
+    !pkce?.state ||
+    !pkce?.codeVerifier ||
+    pkce.state !== state ||
+    pkce.provider !== providerKey
+  ) {
+    return redirectOAuthError(res, 'invalid_state')
+  }
+
+  if (!getProvider(providerKey)) {
+    return redirectOAuthError(res, 'config_error')
+  }
+
+  try {
+    const tokenData = await exchangeCodeForToken(
+      providerKey,
+      code,
+      pkce.codeVerifier
+    )
+    const profile = await fetchUserProfile(providerKey, tokenData.access_token)
+
+    const user = db.upsertOAuthUser.get({
+      username: profile.username,
+      provider: providerKey,
+      provider_id: profile.providerId,
+    })
+
+    clearOAuthCookie(res)
+    issueAuthCookies(res, user)
+    return res.redirect('/bat-computer')
+  } catch (err) {
+    console.error(`[oauth/${providerKey}]`, err.message)
+    return redirectOAuthError(res, 'exchange_failed', err.message)
+  }
+}
+
+for (const providerKey of ['google', 'github', 'discord']) {
+  router.get(`/${providerKey}`, startOAuth(providerKey))
+  router.get(`/${providerKey}/callback`, (req, res) =>
+    handleOAuthCallback(providerKey, req, res)
+  )
+}
 
 module.exports = router

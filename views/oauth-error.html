@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr-FR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BatCave - Erreur OAuth</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">BatCave</a>
+        <div class="collapse navbar-collapse show" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="/">Accueil</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/auth/login">Se connecter</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container mt-5" style="max-width: 560px">
+      <div class="alert alert-warning" role="alert">
+        <h1 class="h4 alert-heading">Connexion annulée ou refusée</h1>
+        <p id="error-message" class="mb-0">
+          L'autorisation a été refusée ou une erreur est survenue chez le
+          fournisseur d'identité.
+        </p>
+      </div>
+      <a href="/auth/login" class="btn btn-primary">Retour à la connexion</a>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search)
+      const error = params.get('error')
+      const description = params.get('error_description')
+      const el = document.getElementById('error-message')
+
+      const messages = {
+        access_denied:
+          "Vous avez annulé l'autorisation. Aucun compte n'a été créé ni connecté.",
+        invalid_state:
+          'La requête OAuth est invalide ou a expiré (state). Recommencez la connexion.',
+        missing_code:
+          "Aucun code d'autorisation reçu. Recommencez la connexion.",
+        provider_error:
+          "Le fournisseur d'identité a renvoyé une erreur.",
+        exchange_failed:
+          "L'échange du code contre un jeton a échoué.",
+        config_error:
+          "Ce fournisseur n'est pas configuré correctement sur le serveur.",
+      }
+
+      if (error && messages[error]) {
+        el.textContent = messages[error]
+      } else if (description) {
+        el.textContent = description
+      } else if (error) {
+        el.textContent = `Erreur OAuth : ${error}`
+      }
+    </script>
+  </body>
+</html>
