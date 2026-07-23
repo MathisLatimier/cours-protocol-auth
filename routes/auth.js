@@ -52,7 +52,9 @@ router.post('/login', async (req, res) => {
     return res.status(400).send('Veuillez remplir tous les champs.')
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+  const user = db
+    .prepare("SELECT * FROM users WHERE username = ? AND provider = 'local'")
+    .get(username)
 
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).send('Identifiants invalides.')
@@ -81,7 +83,9 @@ router.post('/verify-2fa', (req, res) => {
     return res.status(400).json({ error: 'Nom d\'utilisateur et code TOTP requis.' })
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+  const user = db
+    .prepare("SELECT * FROM users WHERE username = ? AND provider = 'local'")
+    .get(username)
 
   if (!user || !user.two_factor_enabled || !user.two_factor_secret) {
     return res.status(401).json({ error: 'Authentification 2FA impossible.' })
@@ -203,7 +207,9 @@ router.post('/2fa/confirm', isAuthenticated, (req, res) => {
     return res.status(400).json({ error: 'Nom d\'utilisateur et code à 6 chiffres requis.' })
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+  const user = db
+    .prepare("SELECT * FROM users WHERE username = ? AND provider = 'local'")
+    .get(username)
 
   if (!user || !user.two_factor_secret) {
     return res.status(400).json({ error: 'Aucune initialisation 2FA en attente pour cet utilisateur.' })
@@ -233,7 +239,9 @@ router.post('/register', async (req, res) => {
 
   username = username.trim()
 
-  const user_already_exists = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
+  const user_already_exists = db
+    .prepare("SELECT * FROM users WHERE username = ? AND provider = 'local'")
+    .get(username)
   if (user_already_exists) {
     return res.status(409).send("Erreur : l'utilisateur existe déjà.")
   }
@@ -252,9 +260,9 @@ router.post('/register', async (req, res) => {
 
   try {
     const insert = db.prepare(
-      'INSERT INTO users (username, password_hash) VALUES (?, ?)'
+      "INSERT INTO users (username, password_hash, provider, provider_id) VALUES (?, ?, 'local', ?)"
     )
-    const result = insert.run(username, hash)
+    const result = insert.run(username, hash, username)
     const user = { id: Number(result.lastInsertRowid), username }
 
     // Session temporaire post-inscription pour permettre l'enrôlement 2FA
